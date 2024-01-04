@@ -39,8 +39,10 @@ var ApiReqFactory = struct {
 	VerifyDomains func(accessKey, certificateId, validationMethod, validationEmail string) (req *http.Request)
 	// Request of verification status.
 	VerificationStatus func(accessKey, id string) (req *http.Request)
-	// Request of deleting a certificate.
-	DeleteCertificate func(accessKey, id string) (req *http.Request)
+	// Cancel a certificate that is in draft or pending_validation state.
+	CancelCertificate func(accessKey, id string) (req *http.Request)
+	// Revoke a certificate that is in issued state.
+	RevokeCertificate func(accessKey, id, reason string) (req *http.Request)
 	// Request of downloading a certificate.
 	DownloadCertificateInline func(accessKey, certID, includeCrossSigned string) (req *http.Request)
 }{
@@ -132,13 +134,31 @@ var ApiReqFactory = struct {
 		req.URL = url_
 		return
 	},
-	DeleteCertificate: func(accessKey, id string) (req *http.Request) {
-		req = &http.Request{Method: http.MethodDelete}
-		url_ := &url.URL{Scheme: "https", Host: ApiEndpoint, Path: "/certificates/" + id}
+	CancelCertificate: func(accessKey, id string) (req *http.Request) {
+		req = &http.Request{Method: http.MethodPost}
+		url_ := &url.URL{Scheme: "https", Host: ApiEndpoint, Path: "/certificates/" + id + "/cancel"}
 		q_ := make(url.Values)
 		q_.Add("access_key", accessKey)
 		url_.RawQuery = q_.Encode()
 		req.URL = url_
+		return
+	},
+	RevokeCertificate: func(accessKey, id, reason string) (req *http.Request) {
+		req = &http.Request{Method: http.MethodPost}
+		url_ := &url.URL{Scheme: "https", Host: ApiEndpoint, Path: "/certificates/" + id + "/revoke"}
+		q_ := make(url.Values)
+		q_.Add("access_key", accessKey)
+		url_.RawQuery = q_.Encode()
+		req.URL = url_
+		bodyForm_ := make(url.Values)
+		if reason != "" {
+			bodyForm_.Add("reason", reason)
+		}
+		if len(bodyForm_) > 0 {
+			req.Header = make(http.Header)
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.Body = io.NopCloser(strings.NewReader(bodyForm_.Encode()))
+		}
 		return
 	},
 	DownloadCertificateInline: func(accessKey, certID, includeCrossSigned string) (req *http.Request) {

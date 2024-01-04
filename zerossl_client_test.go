@@ -73,14 +73,14 @@ func TestClient_CreateCert(t *testing.T) {
 	t.Logf("cert: %#v", cert_)
 }
 
-func TestClient_DeleteCert(t *testing.T) {
+func TestClient_CancelCert(t *testing.T) {
 	c_ := &Client{ApiKey: "x"}
-	err := c_.DeleteCert("x")
+	err := c_.CancelCert("x")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	t.Log("cert deleted")
+	t.Log("cert canceled")
 }
 
 func TestClient_VerifyDomains(t *testing.T) {

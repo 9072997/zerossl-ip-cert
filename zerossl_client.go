@@ -49,9 +49,6 @@ func (c *Client) GetCert(id string) (cert CertificateInfoModel, err error) {
 	}
 	err = json.NewDecoder(resp.Body).Decode(&cert)
 	if err != nil {
-		if &cert == nil {
-			return
-		}
 		log.Println(err)
 		// The validation field in api response can an empty array, using the partially unmarshalled value.
 		return cert, nil
@@ -83,9 +80,28 @@ func (c *Client) CreateCert(domains, csr, days, isStrictDomains string) (cert Ce
 	return
 }
 
-// DeleteCert deletes a certificate.
-func (c *Client) DeleteCert(id string) (err error) {
-	req_ := ApiReqFactory.DeleteCertificate(c.ApiKey, id)
+// CancelCert cancels a certificate that is not yet issued.
+func (c *Client) CancelCert(id string) (err error) {
+	req_ := ApiReqFactory.CancelCertificate(c.ApiKey, id)
+	resp, err := http.DefaultClient.Do(req_)
+	if err != nil {
+		return err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(resp.Body)
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("ZeroSSL API returned status code %d", resp.StatusCode)
+	}
+	return
+}
+
+// RevokeCert revokes a certificate that is already issued.
+func (c *Client) RevokeCert(id, reason string) (err error) {
+	req_ := ApiReqFactory.RevokeCertificate(c.ApiKey, id, reason)
 	resp, err := http.DefaultClient.Do(req_)
 	if err != nil {
 		return err
@@ -193,9 +209,6 @@ func (c *Client) ListCerts(status, search, limit, page string) (listCertsRsp Lis
 	}
 	err = json.NewDecoder(resp.Body).Decode(&listCertsRsp)
 	if err != nil {
-		if &listCertsRsp == nil {
-			return
-		}
 		log.Println(err)
 		// The validation field in api response can an empty array, using the partially unmarshalled value.
 		return listCertsRsp, nil
@@ -218,7 +231,7 @@ func (c *Client) CleanUnfinished() (err error) {
 			if cert.Status == CertStatus.Draft || cert.Status == CertStatus.PendingValidation ||
 				cert.Status == CertStatus.Cancelled || cert.Status == CertStatus.Expired {
 				log.Printf("Cleaning %s in %s status, id %s", cert.CommonName, cert.Status, cert.ID)
-				err = c.DeleteCert(cert.ID)
+				err = c.CancelCert(cert.ID)
 				if err != nil {
 					log.Println(err)
 				}
